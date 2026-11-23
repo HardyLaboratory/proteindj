@@ -6,6 +6,7 @@ process PrepBoltz {
     path msa_file, stageAs: 'target_msa.a3m'
     val(is_binder_mode)
     val(binder_only)
+    path fold_jsons, stageAs: 'fold_jsons/*'
 
     output:
     path ("output/*.yaml"), emit: yamls
@@ -24,6 +25,10 @@ process PrepBoltz {
     def templateForceParam = (params.boltz_use_templates && !binder_only && params.boltz_template_force) ? "--template-force" : ""
     def templateThresholdParam = (params.boltz_use_templates && !binder_only && params.boltz_template_threshold) ? "--template-threshold ${params.boltz_template_threshold}" : ""
     
+    // In monomer mode only residues kept fixed during fold design are templated (using the fold design
+    // JSONs), so that designed residues do not bias the prediction. Without JSONs the whole chain is templated.
+    def foldJsonParam = (params.boltz_use_templates && !binder_only && !is_binder_mode) ? "--fold-json-dir fold_jsons" : ""
+
     // Build MSA parameter if provided (unbound/binder-only prediction never uses an MSA)
     def msaParam = (params.boltz_input_msa && !binder_only) ? "--msa-file target_msa.a3m --msa-chain ${msaChain}" : ""
 
@@ -38,6 +43,7 @@ process PrepBoltz {
         ${templateParams} \
         ${templateForceParam} \
         ${templateThresholdParam} \
+        ${foldJsonParam} \
         ${msaParam} \
         ${binderOnlyParam}
     """

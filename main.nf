@@ -407,6 +407,13 @@ workflow {
     ///////////////////////////
     // Run Sequence Design if not skipped
     if (!params.skip_fold_seq & !params.skip_fold_seq_pred & !params.run_fold_only) {
+        // Fold design JSONs hold the fixed-residue masks that PrepBoltz uses to avoid templating designed residues
+        filt_fold_pdbs_jsons
+            .map { it[1] }
+            .flatten()
+            .collect()
+            .set { fold_jsons_for_boltz }
+
         // Sequence design (either MPNN or FAMPNN)
         if (params.seq_method == "mpnn") {
             // Add FIXED labels to PDBs for target residues so the sequence does not change
@@ -506,6 +513,11 @@ workflow {
         Channel
             .of(pdbs_for_pred)
             .set { filt_seq_pdbs }
+
+        // No fold design JSONs available, so Boltz templates all residues
+        Channel
+            .value(file("${projectDir}/lib/NO_FILE"))
+            .set { fold_jsons_for_boltz }
     }
     else if (params.skip_fold_seq_pred) {
         println("Skipping Sequence Design stage as skip_fold_seq_pred=true.")
@@ -579,7 +591,7 @@ workflow {
             }
 
             // Prep yaml files for Boltz-2
-            PrepBoltz(pred_input_pdbs, msa_input, is_binder_mode, false)
+            PrepBoltz(pred_input_pdbs, msa_input, is_binder_mode, false, fold_jsons_for_boltz)
 
             // Handle templates - use empty channel if not present
             PrepBoltz.out.templates
@@ -633,7 +645,7 @@ workflow {
             // in the absence of the target. Runs as a fully separate Boltz-2 prediction of chain A only.
             def unbound_json_files
             if (is_binder_mode && params.boltz_predict_unbound_binder) {
-                PrepBoltzUnbound(pred_input_pdbs, file("${projectDir}/lib/NO_FILE"), is_binder_mode, true)
+                PrepBoltzUnbound(pred_input_pdbs, file("${projectDir}/lib/NO_FILE"), is_binder_mode, true, file("${projectDir}/lib/NO_FILE"))
 
                 PrepBoltzUnbound.out.templates
                     .ifEmpty(file("${projectDir}/lib/NO_FILE"))
@@ -744,7 +756,7 @@ workflow {
             }
 
             // Prep yaml files for Boltz-2
-            PrepBoltz(boltz_input_pdbs, msa_input, is_binder_mode, false)
+            PrepBoltz(boltz_input_pdbs, msa_input, is_binder_mode, false, fold_jsons_for_boltz)
 
             // Handle templates - use empty channel if not present
             PrepBoltz.out.templates
@@ -798,7 +810,7 @@ workflow {
             // in the absence of the target. Runs as a fully separate Boltz-2 prediction of chain A only.
             def unbound_json_files
             if (is_binder_mode && params.boltz_predict_unbound_binder) {
-                PrepBoltzUnbound(boltz_input_pdbs, file("${projectDir}/lib/NO_FILE"), is_binder_mode, true)
+                PrepBoltzUnbound(boltz_input_pdbs, file("${projectDir}/lib/NO_FILE"), is_binder_mode, true, file("${projectDir}/lib/NO_FILE"))
 
                 PrepBoltzUnbound.out.templates
                     .ifEmpty(file("${projectDir}/lib/NO_FILE"))
