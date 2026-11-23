@@ -9,11 +9,27 @@ from Bio.PDB.Model import Model as PDBModel
 from Bio.PDB.Structure import Structure as PDBStructure
 import yaml
 
+from fold_masks import find_fold_json, load_fixed_mask
+
 
 class ChainSelect(Select):
-    """Select all atoms (used for clean PDB writing)."""
+    """Select all atoms (used for clean PDB writing), except residues tagged as not templatable."""
     def accept_residue(self, residue):
-        return 1
+        return 1 if residue.xtra.get('templatable', True) else 0
+
+
+def tag_templatable_residues(structure, fixed_mask):
+    """
+    Tag each standard residue (in PDB order) with xtra['templatable'] = fixed_mask[i].
+
+    Returns False, tagging nothing, if the mask length does not match the number of residues.
+    """
+    residues = [r for chain in structure[0] for r in chain if r.id[0] == ' ']
+    if len(residues) != len(fixed_mask):
+        return False
+    for residue, fixed in zip(residues, fixed_mask):
+        residue.xtra['templatable'] = fixed
+    return True
 
 
 def get_available_chain_ids(used_ids):
@@ -63,29 +79,49 @@ def split_structure_chains(structure, max_break_distance=3.0):
     return new_structure, chain_id_map
 
 
-def add_seqres_to_pdb(input_pdb, output_pdb, max_break_distance=3.0):
+def add_seqres_to_pdb(input_pdb, output_pdb, max_break_distance=3.0, fixed_mask=None):
     """
     Add SEQRES records to a PDB file. Chains with peptide bond breaks
     (C→N > max_break_distance Å) are split into separate chains before writing.
+
+    If fixed_mask is given, only residues with a True value (sequence fixed during design) keep
+    their ATOM records. Designed residues stay in SEQRES, so Boltz still aligns the full-length
+    sequence but treats them as unresolved, i.e. no template coordinates are provided for them.
 
     Args:
         input_pdb: Path to input PDB file
         output_pdb: Path to output PDB file with SEQRES records
         max_break_distance: Maximum C→N distance (Å) to consider a chain break
+        fixed_mask: Optional list of booleans (one per residue in PDB order), True = keep as template
+
+    Returns:
+        list of (split) chain IDs written to the output PDB
     """
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure('structure', input_pdb)
+
+    # Tag before splitting so chain breaks are still detected on the complete structure
+    if fixed_mask is not None and not tag_templatable_residues(structure, fixed_mask):
+        print(f'  WARNING: fold mask length ({len(fixed_mask)}) does not match the residues in '
+              f'{os.path.basename(str(input_pdb))}; templating all residues')
 
     new_structure, _ = split_structure_chains(structure, max_break_distance)
 
     # Build chain sequences (3-letter codes) from the new split structure
     chain_sequences = {}
+    templated_chains = []
     for model in new_structure:
         for chain in model:
             seq = [r.resname for r in chain if r.id[0] == ' ']
             if seq:
                 chain_sequences[chain.id] = seq
+            if any(r.xtra.get('templatable', True) for r in chain):
+                templated_chains.append(chain.id)
         break
+
+    if fixed_mask is not None:
+        # Chains without any templated residue would be SEQRES-only entries, so leave them out
+        chain_sequences = {c: seq for c, seq in chain_sequences.items() if c in templated_chains}
 
     with open(output_pdb, 'w') as out_file:
         # Write SEQRES records
@@ -107,6 +143,8 @@ def add_seqres_to_pdb(input_pdb, output_pdb, max_break_distance=3.0):
                 out_file.write(line)
 
         out_file.write('END\n')
+
+    return templated_chains
 
 
 def extract_sequences(pdb_path, msa_files=None, msa_chain=None, msa_exclude_chain=None, max_break_distance=3.0):
@@ -243,7 +281,7 @@ def generate_yaml_config(sequences, use_template=False, pdb_filename=None,
 def process_pdb_files(input_dir, output_dir, use_template=False, template_chain='B',
                       template_exclude_chain=None, template_force=False, template_threshold=None,
                       msa_files=None, msa_chain=None, msa_exclude_chain=None,
-                      max_break_distance=3.0, binder_only_chain=None):
+                      max_break_distance=3.0, binder_only_chain=None, fold_json_dir=None):
     """
     Process PDB files and generate YAML configs with optional PDB templates and MSA.
 
@@ -267,6 +305,10 @@ def process_pdb_files(input_dir, output_dir, use_template=False, template_chain=
         binder_only_chain: If set, restrict the YAML to only this original chain's (sub-)chains
                             (e.g. for an unbound/target-free binder-only prediction), and disable
                             templates/MSA since there is no target to template/align against
+        fold_json_dir: Directory of fold design JSONs (fold_N.json). If given, only residues whose
+                       sequence was fixed during fold design are templated; designed residues are
+                       left out so they do not bias the prediction. Files without a usable
+                       mask in this directory fall back to templating the whole chain.
     """
     if binder_only_chain:
         use_template = False
@@ -323,10 +365,26 @@ def process_pdb_files(input_dir, output_dir, use_template=False, template_chain=
                         continue
                     template_chains = chain_id_map[template_chain]
 
+                fixed_mask = None
+                if fold_json_dir:
+                    json_path = find_fold_json(fold_json_dir, filename)
+                    if json_path:
+                        fixed_mask = load_fixed_mask(json_path)
+                    if fixed_mask is None:
+                        print(f'  No fold design mask found for {filename}; templating all residues')
+
                 # Write template PDB with SEQRES records and split chains
                 template_path = os.path.join(templates_dir, filename)
-                add_seqres_to_pdb(pdb_path, template_path, max_break_distance=max_break_distance)
-                print(f'Copied template with SEQRES: {filename} -> templates/{filename}')
+                templated_chains = add_seqres_to_pdb(pdb_path, template_path,
+                                                     max_break_distance=max_break_distance,
+                                                     fixed_mask=fixed_mask)
+                if fixed_mask is not None:
+                    template_chains = [c for c in template_chains if c in templated_chains]
+                    if not template_chains:
+                        os.remove(template_path)
+                        print(f'No fixed residues to template for {filename}: all residues were designed')
+                if template_chains:
+                    print(f'Copied template with SEQRES: {filename} -> templates/{filename}')
             else:
                 template_chains = chain_id_map.get(template_chain, [template_chain])
 
@@ -382,6 +440,10 @@ def main():
                              '--template-exclude-chain). Takes precedence over --msa-chain.')
     parser.add_argument('--max-break-distance', type=float, default=3.0,
                         help='Maximum C→N distance (Å) to consider a chain break (default: 3.0)')
+    parser.add_argument('--fold-json-dir', default=None,
+                        help='Directory of fold design JSONs (fold_N.json). If set, only residues whose '
+                             'sequence was fixed during fold design are templated (designed residues '
+                             'are omitted from the template).')
     parser.add_argument('--binder-only-chain', default=None,
                         help='Restrict YAML to only this original chain (e.g. "A") for an '
                              'unbound/target-free binder-only prediction. Disables templates/MSA.')
@@ -405,7 +467,8 @@ def main():
         msa_chain=msa_chain if msa_files else None,
         msa_exclude_chain=msa_exclude_chain if msa_files else None,
         max_break_distance=args.max_break_distance,
-        binder_only_chain=args.binder_only_chain
+        binder_only_chain=args.binder_only_chain,
+        fold_json_dir=args.fold_json_dir
     )
 
 

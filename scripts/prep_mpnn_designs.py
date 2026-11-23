@@ -39,7 +39,7 @@ def get_fixed_residues(pdb_path, json_path=None):
         try:
             json_data = read_json_file(json_path)
             
-            # Look for inpaint_seq array (False means fixed). Only one of these keys will be
+            # Look for inpaint_seq array (True means fixed). Only one of these keys will be
             # present, depending on which fold design tool (RFdiffusion, BindCraft, BoltzGen)
             # produced this fold.
             inpaint_key = next(

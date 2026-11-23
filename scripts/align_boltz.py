@@ -10,6 +10,9 @@ from multiprocessing import Pool
 from Bio.PDB import PDBParser, PDBIO, Superimposer
 from Bio.PDB.Selection import unfold_entities
 from copy import deepcopy
+import numpy as np
+
+from fold_masks import find_fold_json, load_fixed_mask
 
 def setup_logging():
     """Configure logging"""
@@ -26,6 +29,8 @@ def setup_logging():
     return logger
 
 logger = setup_logging()
+
+DESIGNED_METRIC_KEYS = ("boltz_rmsd_designed", "boltz_plddt_designed")
 
 def get_all_ca_atoms(structure):
     """Collect all CA atoms from all chains in structure"""
@@ -71,10 +76,47 @@ def get_target_ca_atoms(structure, binder_chain='A'):
         raise ValueError(f"No CA atoms found in target chains (excluding '{binder_chain}')")
     return ca_atoms
 
+def get_designed_ca_indices(structure, fixed_mask):
+    """Indices into the get_all_ca_atoms() list of the CA atoms of designed residues.
+
+    fixed_mask holds one boolean per standard residue in PDB order (True = fixed during fold design,
+    False = designed). Returns None if its length does not match the number of residues.
+    """
+    designed = []
+    residue_idx = 0
+    ca_idx = 0
+    for model in structure:
+        for chain in model:
+            for residue in chain:
+                is_designed = False
+                if residue.id[0] == ' ':
+                    is_designed = residue_idx < len(fixed_mask) and not fixed_mask[residue_idx]
+                    residue_idx += 1
+                if 'CA' in residue:
+                    if is_designed:
+                        designed.append(ca_idx)
+                    ca_idx += 1
+    return designed if residue_idx == len(fixed_mask) else None
+
+def calculate_designed_metrics(ref_atoms, boltz_atoms, designed_idx):
+    """C-alpha RMSD and mean pLDDT (0-1) of designed residues, for an already superimposed prediction.
+
+    The RMSD is not re-fitted to the designed residues, so it reflects their position in the frame of
+    the overall alignment. Boltz-2 stores per-residue pLDDT x 100 in the PDB B-factor column.
+    """
+    if not designed_idx:
+        return {}
+    diffs = np.array([ref_atoms[i].coord - boltz_atoms[i].coord for i in designed_idx])
+    plddts = [boltz_atoms[i].get_bfactor() / 100 for i in designed_idx]
+    return {
+        "boltz_rmsd_designed": round(float(np.sqrt((diffs ** 2).sum(axis=1).mean())), 2),
+        "boltz_plddt_designed": round(float(np.mean(plddts)), 3),
+    }
+
 def align_structures(args):
     """Align Boltz structure to Design template with chain-specific handling"""
     (design_path, boltz_path, out_pdb, src_json, dst_json, 
-     fold_id, seq_id, design_type) = args  # Added design_type
+     fold_id, seq_id, design_type, fixed_mask) = args
     
     try:
         parser = PDBParser(QUIET=True)
@@ -136,6 +178,15 @@ def align_structures(args):
             rmsd_data = {
                 "boltz_rmsd_overall": round(superimposer.rms, 2)
             }
+
+            # Metrics for the designed residues only, after alignment on the whole monomer
+            if fixed_mask is not None:
+                designed_idx = get_designed_ca_indices(ref_structure, fixed_mask)
+                if designed_idx is None:
+                    logger.warning(f"Fold mask length ({len(fixed_mask)}) does not match residues in "
+                                   f"{design_path.name}; skipping designed residue metrics")
+                else:
+                    rmsd_data.update(calculate_designed_metrics(ref_atoms, boltz_atoms, designed_idx))
 
         # Save aligned structure (always chain B aligned for binder)
         io = PDBIO()
@@ -202,6 +253,7 @@ def align_structures(args):
                     "boltz_plddt": round(data.get("complex_plddt", 0), 3),
                     "boltz_pde": round(data.get("complex_pde", 0), 2),
                 }
+                out_json.update({k: v for k, v in rmsd_data.items() if k in DESIGNED_METRIC_KEYS})
 
             with open(dst_json, 'w') as f:
                 json.dump(out_json, f, indent=2)
@@ -223,6 +275,9 @@ def main():
     parser.add_argument("--design_type", choices=['binder', 'monomer', 'unbound_binder'], required=True,
                       help="Design type: 'binder' (A/B chains), 'monomer' (A chain), or "
                            "'unbound_binder' (target-free binder-only prediction aligned to chain A)")
+    parser.add_argument("--fold_json_dir", type=Path, default=None,
+                      help="Directory with fold design JSONs (fold_N.json). Monomer designs only: used to "
+                           "identify designed residues for boltz_rmsd_designed and boltz_plddt_designed")
     parser.add_argument("--ncpus", type=int, default=1,
                       help="Number of CPUs for parallel processing")
     args = parser.parse_args()
@@ -274,6 +329,15 @@ def main():
         out_pdb = args.output_dir / f"{out_base_name}.pdb"
         dst_json = args.output_dir / f"{out_base_name}.json"
         
+        fixed_mask = None
+        if args.design_type == 'monomer' and args.fold_json_dir:
+            json_path = find_fold_json(str(args.fold_json_dir), design_files[key].name)
+            if json_path:
+                fixed_mask = load_fixed_mask(json_path)
+            if fixed_mask is None:
+                logger.warning(f"No fold design mask found for {design_files[key].name}; "
+                               "designed residue metrics will not be calculated")
+
         tasks.append((
             design_files[key],
             boltz_file,
@@ -282,7 +346,8 @@ def main():
             dst_json,
             fold_id,
             seq_id,
-            args.design_type
+            args.design_type,
+            fixed_mask
         ))
     
     # Log processing start

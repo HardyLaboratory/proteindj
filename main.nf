@@ -117,7 +117,7 @@ workflow {
     def seq_max_score_param = seq_max_score != null ? "--max-score ${seq_max_score}" : ''
     def seq_filter_params = Utils.formatFilterParams(params, "seq", ["min_ext_coef", "max_ext_coef", "min_pi", "max_pi"])
     def af2_filter_params = Utils.formatFilterParams(params, "af2", ["min_iptm", "max_pae_interaction", "max_pae_overall", "max_pae_binder", "max_pae_target", "min_plddt_overall", "min_plddt_binder", "min_plddt_target", "max_rmsd_overall", "max_rmsd_binder_bndaln", "max_rmsd_binder_tgtaln", "max_rmsd_target"])
-    def boltz_filter_params = Utils.formatFilterParams(params, "boltz", ["max_rmsd_overall", "max_rmsd_binder", "max_rmsd_target", "min_conf_score", "min_ptm", "min_ptm_binder", "min_ptm_target", "min_iptm", "min_plddt", "min_iplddt", "max_pde", "max_ipde", "min_ipSAE_min", "min_LIS", "min_pDockQ2_min", "max_pae_interaction", "max_unbound_rmsd", "min_unbound_conf_score", "min_unbound_ptm", "min_unbound_plddt", "max_unbound_pde"])
+    def boltz_filter_params = Utils.formatFilterParams(params, "boltz", ["max_rmsd_overall", "max_rmsd_designed", "max_rmsd_binder", "max_rmsd_target", "min_conf_score", "min_ptm", "min_ptm_binder", "min_ptm_target", "min_iptm", "min_plddt", "min_plddt_designed", "min_iplddt", "max_pde", "max_ipde", "min_ipSAE_min", "min_LIS", "min_pDockQ2_min", "max_pae_interaction", "max_unbound_rmsd", "min_unbound_conf_score", "min_unbound_ptm", "min_unbound_plddt", "max_unbound_pde"])
     def analysis_filter_params = Utils.formatFilterParams(params, "pr", ["min_helices", "max_helices", "min_strands", "max_strands", "min_total_ss", "max_total_ss", "min_rog", "max_rog", "min_intface_bsa", "min_intface_shpcomp", "min_intface_hbonds", "max_intface_unsat_hbonds", "max_intface_deltag", "max_intface_deltagtobsa", "max_surfhphobics", "max_sap", "max_sap_complex"])
 
     println("***********************************************************************")
@@ -436,6 +436,13 @@ workflow {
     ///////////////////////////
     // Run Sequence Design if not skipped
     if (!params.skip_fold_seq & !params.skip_fold_seq_pred & !params.run_fold_only) {
+        // Fold design JSONs hold the fixed-residue masks that PrepBoltz uses to avoid templating designed residues
+        filt_fold_pdbs_jsons
+            .map { it[1] }
+            .flatten()
+            .collect()
+            .set { fold_jsons_for_boltz }
+
         // Sequence design (either MPNN or FAMPNN)
         if (params.design_mode == 'rfd4_denovo') {
             UseRFD4Sequences(filt_fold_pdbs_jsons)
@@ -542,6 +549,11 @@ workflow {
         Channel
             .of(pdbs_for_pred)
             .set { filt_seq_pdbs }
+
+        // No fold design JSONs available, so Boltz templates all residues
+        Channel
+            .value(file("${projectDir}/lib/NO_FILE"))
+            .set { fold_jsons_for_boltz }
     }
     else if (params.skip_fold_seq_pred) {
         println("Skipping Sequence Design stage as skip_fold_seq_pred=true.")
@@ -616,7 +628,7 @@ workflow {
             }
 
             // Prep yaml files for Boltz-2
-            PrepBoltz(pred_input_pdbs, msa_input, is_binder_mode, false)
+            PrepBoltz(pred_input_pdbs, msa_input, is_binder_mode, false, fold_jsons_for_boltz)
 
             // Handle templates - use empty channel if not present
             PrepBoltz.out.templates
@@ -662,17 +674,17 @@ workflow {
 
             // Align Boltz Predictions to FAMPNN output and calculate RMSD
             if (is_binder_mode) {
-                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'binder')
+                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'binder', fold_jsons_for_boltz)
             }
             else {
-                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'monomer')
+                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'monomer', fold_jsons_for_boltz)
             }
 
             // Optional unbound (target-free) binder-only prediction, for QC of fold consistency
             // in the absence of the target. Runs as a fully separate Boltz-2 prediction of chain A only.
             def unbound_json_files
             if (is_binder_mode && params.boltz_predict_unbound_binder) {
-                PrepBoltzUnbound(pred_input_pdbs, file("${projectDir}/lib/NO_FILE"), is_binder_mode, true)
+                PrepBoltzUnbound(pred_input_pdbs, file("${projectDir}/lib/NO_FILE"), is_binder_mode, true, file("${projectDir}/lib/NO_FILE"))
 
                 PrepBoltzUnbound.out.templates
                     .ifEmpty(file("${projectDir}/lib/NO_FILE"))
@@ -695,7 +707,7 @@ workflow {
                     .set { unbound_pred_tuple }
 
                 // Align to the original (binder+target) design, comparing chain A only
-                AlignBoltzUnbound(unbound_pred_tuple, designs_for_alignment, 'unbound_binder')
+                AlignBoltzUnbound(unbound_pred_tuple, designs_for_alignment, 'unbound_binder', file("${projectDir}/lib/NO_FILE"))
 
                 CompressBoltzUnbound("boltz_unbound", AlignBoltzUnbound.out.pdbs_jsons.flatten().collect())
 
@@ -784,7 +796,7 @@ workflow {
             }
 
             // Prep yaml files for Boltz-2
-            PrepBoltz(boltz_input_pdbs, msa_input, is_binder_mode, false)
+            PrepBoltz(boltz_input_pdbs, msa_input, is_binder_mode, false, fold_jsons_for_boltz)
 
             // Handle templates - use empty channel if not present
             PrepBoltz.out.templates
@@ -830,17 +842,17 @@ workflow {
 
             // Align Boltz Predictions to FAMPNN output and calculate RMSD
             if (is_binder_mode) {
-                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'binder')
+                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'binder', fold_jsons_for_boltz)
             }
             else {
-                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'monomer')
+                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'monomer', fold_jsons_for_boltz)
             }
 
             // Optional unbound (target-free) binder-only prediction, for QC of fold consistency
             // in the absence of the target. Runs as a fully separate Boltz-2 prediction of chain A only.
             def unbound_json_files
             if (is_binder_mode && params.boltz_predict_unbound_binder) {
-                PrepBoltzUnbound(boltz_input_pdbs, file("${projectDir}/lib/NO_FILE"), is_binder_mode, true)
+                PrepBoltzUnbound(boltz_input_pdbs, file("${projectDir}/lib/NO_FILE"), is_binder_mode, true, file("${projectDir}/lib/NO_FILE"))
 
                 PrepBoltzUnbound.out.templates
                     .ifEmpty(file("${projectDir}/lib/NO_FILE"))
@@ -863,7 +875,7 @@ workflow {
                     .set { unbound_pred_tuple }
 
                 // Align to the original (binder+target) design, comparing chain A only
-                AlignBoltzUnbound(unbound_pred_tuple, designs_for_alignment, 'unbound_binder')
+                AlignBoltzUnbound(unbound_pred_tuple, designs_for_alignment, 'unbound_binder', file("${projectDir}/lib/NO_FILE"))
 
                 CompressBoltzUnbound("boltz_unbound", AlignBoltzUnbound.out.pdbs_jsons.flatten().collect())
 

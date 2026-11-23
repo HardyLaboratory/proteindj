@@ -143,11 +143,11 @@ class MetadataConverter:
             'af2_plddt_overall', 'af2_plddt_binder', 'af2_plddt_target',
             'af2_rmsd_overall','af2_rmsd_binder_bndaln','af2_rmsd_binder_tgtaln', 'af2_rmsd_target',
             # Boltz fields
-            'boltz_conf_score','boltz_rmsd_overall', 'boltz_rmsd_binder','boltz_rmsd_target',
+            'boltz_conf_score','boltz_rmsd_overall', 'boltz_rmsd_binder','boltz_rmsd_target','boltz_rmsd_designed',
             'boltz_ipSAE_min','boltz_LIS','boltz_pDockQ2_min',
             'boltz_pae_interaction',
             'boltz_pde', 'boltz_ipde',
-            'boltz_plddt', 'boltz_iplddt',
+            'boltz_plddt', 'boltz_iplddt', 'boltz_plddt_designed',
             'boltz_ptm', 'boltz_iptm','boltz_ptm_binder','boltz_ptm_target',
             'boltz_unbound_rmsd', 'boltz_unbound_conf_score', 'boltz_unbound_ptm', 'boltz_unbound_plddt', 'boltz_unbound_pde',
             # Prediction Analysis fields

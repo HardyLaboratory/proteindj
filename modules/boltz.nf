@@ -6,6 +6,7 @@ process PrepBoltz {
     path msa_files
     val(is_binder_mode)
     val(binder_only)
+    path fold_jsons, stageAs: 'fold_jsons/*'
 
     output:
     path ("output/*.yaml"), emit: yamls
@@ -22,6 +23,10 @@ process PrepBoltz {
     def templateParams = (params.boltz_use_templates && !binder_only) ? "--use-template ${templateChainParam}" : ""
     def templateForceParam = (params.boltz_use_templates && !binder_only && params.boltz_template_force) ? "--template-force" : ""
     def templateThresholdParam = (params.boltz_use_templates && !binder_only && params.boltz_template_threshold) ? "--template-threshold ${params.boltz_template_threshold}" : ""
+    
+    // In monomer mode only residues kept fixed during fold design are templated (using the fold design
+    // JSONs), so that designed residues do not bias the prediction. Without JSONs the whole chain is templated.
+    def foldJsonParam = (params.boltz_use_templates && !binder_only && !is_binder_mode) ? "--fold-json-dir fold_jsons" : ""
 
     // msa_files may contain the NO_FILE sentinel (when boltz_input_msa is unset) or one-or-more
     // real .a3m files (one per target chain, matched positionally in chain order; a single file
@@ -42,6 +47,7 @@ process PrepBoltz {
         ${templateParams} \
         ${templateForceParam} \
         ${templateThresholdParam} \
+        ${foldJsonParam} \
         ${msaParam} \
         ${binderOnlyParam}
     """
@@ -152,6 +158,7 @@ process AlignBoltz {
     tuple path(pdb_files), path(json_files)
     path designs
     val design_type
+    path fold_jsons, stageAs: 'fold_jsons/*'
 
     output:
     tuple path("aligned/*.pdb"), path("aligned/*.json"), emit: pdbs_jsons
@@ -162,6 +169,9 @@ process AlignBoltz {
 
     def num_processes = task.cpus - 1
 
+    // Fold design JSONs identify the designed residues for monomer-only designed residue metrics
+    def foldJsonParam = design_type == 'monomer' ? "--fold_json_dir fold_jsons" : ""
+
     """
     # Script to align predictions to designs and calculate RMSD
     # Also, extracts and renames metadata from json files (includes interface metrics from AnalyseBoltz)
@@ -170,6 +180,7 @@ process AlignBoltz {
         --boltz_dir ./ \
         --output_dir aligned \
         --design_type ${design_type} \
+        ${foldJsonParam} \
         --ncpus ${num_processes} \
         2>&1 | tee alignment_${task.index}.log
     

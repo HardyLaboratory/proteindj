@@ -201,7 +201,7 @@ Advanced parameters to control the behaviour of Full-Atom MPNN
 | `boltz_diffusion_samples`  | 1       | Number of diffusion samples in Boltz-2 predictions.                                                                                                                                  |
 | `boltz_sampling_steps`     | 200     | Number of sampling steps in Boltz-2 predictions.                                                                                                                                     |
 | `boltz_use_potentials`     | false   | Use physics-based potentials during inference to improve physical plausibility of predictions (also known as Boltz-2x). Increases prediction time.                                   |
-| `boltz_use_templates`      | true    | Enable template-guided structure prediction. In binder modes, the target (all non-binder chains, e.g. chain B, or B,C... if there are multiple target chains) is used as template, similar to AlphaFold2 Initial-Guess. In monomer modes, chain A is templated. |
+| `boltz_use_templates`      | true    | Enable template-guided structure prediction. In binder modes, the target (chain B) is used as template, similar to AlphaFold2 Initial-Guess. In monomer modes, chain A is templated, but only the residues kept fixed during fold design; designed residues are left out of the template so they do not bias the prediction. If every residue was designed, no template is used. |
 | `boltz_template_force`     | false   | Enforce template structure with potential during prediction. Requires `boltz_use_templates = true`.                                                                                  |
 | `boltz_template_threshold` | null    | Distance threshold in Angstroms for template deviation. If specified with `boltz_template_force = true`, constrains prediction near template.                                        |
 | `boltz_input_msa` | null | Comma-separated list of one-or-more multiple sequence alignment files (.a3m format) for the input PDB. For binder modes, applied to all non-binder (target) chain(s): a single file is applied to all target chains (e.g. an identical-sequence multi-chain target), or multiple files are matched positionally one-per-chain in chain order. For monomer modes, applied to chain A. MSA must match entire sequence of each chain it is applied to or will be ignored by Boltz for that chain. If null, single-sequence mode is used (msa: empty in YAML). e.g. 'lib/pdl1_msa.a3m' or 'lib/chainB_msa.a3m,lib/chainC_msa.a3m' |
@@ -299,6 +299,7 @@ Boltz-2 Filtering Parameters.
 | Parameter                   | Description                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------------- |
 | `boltz_max_rmsd_overall`    | Max C-alpha RMSD between all chains of Boltz-2 prediction and input design                        |
+| `boltz_max_rmsd_designed`   | Max C-alpha RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. |
 | `boltz_max_rmsd_binder`     | Max C-alpha RMSD between binder chains of Boltz-2 prediction and input design. Binder modes only. |
 | `boltz_max_rmsd_target`     | Max C-alpha RMSD between target chains of Boltz-2 prediction and input design. Binder modes only. |
 | `boltz_min_conf_score`      | Minimum confidence score of the prediction                                                        |
@@ -311,6 +312,7 @@ Boltz-2 Filtering Parameters.
 | `boltz_min_ptm_target`      | Minimum predicted template modelling score of the target chain. Binder modes only.                |
 | `boltz_min_iptm`   | Minimum predicted template modelling score of the prediction interface                            |
 | `boltz_min_plddt`           | Minimum pLDDT score of the prediction                                                             |
+| `boltz_min_plddt_designed`  | Minimum mean pLDDT score of the designed residues. Monomer modes only.                            |
 | `boltz_min_iplddt` | Minimum pLDDT score of the prediction interface                                                   |
 | `boltz_max_pde`             | Maximum predicted distance error of the prediction                                                |
 | `boltz_max_ipde`   | Maximum predicted distance error for the prediction interface                                     |

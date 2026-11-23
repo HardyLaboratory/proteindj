@@ -74,6 +74,7 @@ Metrics from AlphaFold2 Initial-Guess or Boltz-2 predictions evaluating structur
 | `af2_rmsd_target`        | C-alpha RMSD comparing target chains only between input design and AF2 prediction.                                 |
 | `af2_time`               | Time taken (seconds) for AF2 prediction.                                                                           |
 | `boltz_rmsd_overall`     | C-alpha RMSD of Boltz-2 prediction vs input design (all chains).                                                   |
+| `boltz_rmsd_designed`    | Monomer designs only. C-alpha RMSD of the designed residues between the Boltz-2 prediction and input design, after aligning the whole monomer (lower is better). |
 | `boltz_rmsd_binder`      | C-alpha RMSD of Boltz-2 prediction vs input design for binder chains.                                              |
 | `boltz_rmsd_target`      | C-alpha RMSD of Boltz-2 prediction vs input design for target chains.                                              |
 | `boltz_conf_score`       | Confidence score for Boltz-2 prediction; higher is more confident.                                                 |
@@ -84,6 +85,7 @@ Metrics from AlphaFold2 Initial-Guess or Boltz-2 predictions evaluating structur
 | `boltz_pde`              | Predicted distance error (Boltz-2); lower is better.                                                               |
 | `boltz_ipde`    | Predicted distance error for interface (Boltz-2).                                                                  |
 | `boltz_plddt`            | Predicted LDDT score (Boltz-2) for the complex (0-1 scale; higher is better).                                      |
+| `boltz_plddt_designed`   | Monomer designs only. Mean Boltz-2 pLDDT of the designed residues (0-1 scale; higher is better).                |
 | `boltz_iplddt`  | Interface pLDDT score for the complex (Boltz-2).                                                                   |
 | `boltz_ptm`              | Predicted template modeling score for Boltz-2 (0-1 scale; higher is better).                                       |
 | `boltz_ptm_binder`       | pTM score for the binder chain only  (0-1 scale; higher is better). |

@@ -594,6 +594,13 @@
       ],
       "description": "Max RMSD between all chains of Boltz-2 prediction and input design. e.g. 2.5"
     },
+    "boltz_max_rmsd_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Max RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. e.g. 2"
+    },
     "boltz_max_rmsd_binder": {
       "type": [
         "number",
@@ -649,6 +656,13 @@
         "null"
       ],
       "description": "Minimum pLDDT score e.g. 0.85"
+    },
+    "boltz_min_plddt_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Minimum mean pLDDT score of the designed residues. Monomer modes only. e.g. 0.85"
     },
     "boltz_min_iplddt": {
       "type": [
@@ -1546,6 +1560,13 @@
       ],
       "description": "Max RMSD between all chains of Boltz-2 prediction and input design. e.g. 2.5"
     },
+    "boltz_max_rmsd_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Max RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. e.g. 2"
+    },
     "boltz_max_rmsd_binder": {
       "type": [
         "number",
@@ -1601,6 +1622,13 @@
         "null"
       ],
       "description": "Minimum pLDDT score e.g. 0.85"
+    },
+    "boltz_min_plddt_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Minimum mean pLDDT score of the designed residues. Monomer modes only. e.g. 0.85"
     },
     "boltz_min_iplddt": {
       "type": [
@@ -2499,6 +2527,13 @@
       ],
       "description": "Max RMSD between all chains of Boltz-2 prediction and input design. e.g. 2.5"
     },
+    "boltz_max_rmsd_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Max RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. e.g. 2"
+    },
     "boltz_max_rmsd_binder": {
       "type": [
         "number",
@@ -2554,6 +2589,13 @@
         "null"
       ],
       "description": "Minimum pLDDT score e.g. 0.85"
+    },
+    "boltz_min_plddt_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Minimum mean pLDDT score of the designed residues. Monomer modes only. e.g. 0.85"
     },
     "boltz_min_iplddt": {
       "type": [
@@ -3449,6 +3491,13 @@
       ],
       "description": "Max RMSD between all chains of Boltz-2 prediction and input design. e.g. 2.5"
     },
+    "boltz_max_rmsd_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Max RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. e.g. 2"
+    },
     "boltz_max_rmsd_binder": {
       "type": [
         "number",
@@ -3504,6 +3553,13 @@
         "null"
       ],
       "description": "Minimum pLDDT score e.g. 0.85"
+    },
+    "boltz_min_plddt_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Minimum mean pLDDT score of the designed residues. Monomer modes only. e.g. 0.85"
     },
     "boltz_min_iplddt": {
       "type": [
@@ -4407,6 +4463,13 @@
       ],
       "description": "Max RMSD between all chains of Boltz-2 prediction and input design. e.g. 2.5"
     },
+    "boltz_max_rmsd_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Max RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. e.g. 2"
+    },
     "boltz_max_rmsd_binder": {
       "type": [
         "number",
@@ -4462,6 +4525,13 @@
         "null"
       ],
       "description": "Minimum pLDDT score e.g. 0.85"
+    },
+    "boltz_min_plddt_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Minimum mean pLDDT score of the designed residues. Monomer modes only. e.g. 0.85"
     },
     "boltz_min_iplddt": {
       "type": [
@@ -5319,6 +5389,13 @@
       ],
       "description": "Max RMSD between all chains of Boltz-2 prediction and input design. e.g. 2.5"
     },
+    "boltz_max_rmsd_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Max RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. e.g. 2"
+    },
     "boltz_max_rmsd_binder": {
       "type": [
         "number",
@@ -5374,6 +5451,13 @@
         "null"
       ],
       "description": "Minimum pLDDT score e.g. 0.85"
+    },
+    "boltz_min_plddt_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Minimum mean pLDDT score of the designed residues. Monomer modes only. e.g. 0.85"
     },
     "boltz_min_iplddt": {
       "type": [
@@ -6230,6 +6314,13 @@
       ],
       "description": "Max RMSD between all chains of Boltz-2 prediction and input design. e.g. 2.5"
     },
+    "boltz_max_rmsd_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Max RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. e.g. 2"
+    },
     "boltz_max_rmsd_binder": {
       "type": [
         "number",
@@ -6285,6 +6376,13 @@
         "null"
       ],
       "description": "Minimum pLDDT score e.g. 0.85"
+    },
+    "boltz_min_plddt_designed": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Minimum mean pLDDT score of the designed residues. Monomer modes only. e.g. 0.85"
     },
     "boltz_min_iplddt": {
       "type": [
