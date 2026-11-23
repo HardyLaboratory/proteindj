@@ -115,7 +115,7 @@ workflow {
     def seq_max_score_param = seq_max_score != null ? "--max-score ${seq_max_score}" : ''
     def seq_filter_params = Utils.formatFilterParams(params, "seq", ["min_ext_coef", "max_ext_coef", "min_pi", "max_pi"])
     def af2_filter_params = Utils.formatFilterParams(params, "af2", ["min_iptm", "max_pae_interaction", "max_pae_overall", "max_pae_binder", "max_pae_target", "min_plddt_overall", "min_plddt_binder", "min_plddt_target", "max_rmsd_overall", "max_rmsd_binder_bndaln", "max_rmsd_binder_tgtaln", "max_rmsd_target"])
-    def boltz_filter_params = Utils.formatFilterParams(params, "boltz", ["max_rmsd_overall", "max_rmsd_binder", "max_rmsd_target", "min_conf_score", "min_ptm", "min_ptm_binder", "min_ptm_target", "min_iptm", "min_plddt", "min_iplddt", "max_pde", "max_ipde", "min_ipSAE_min", "min_LIS", "min_pDockQ2_min", "max_pae_interaction", "max_unbound_rmsd", "min_unbound_conf_score", "min_unbound_ptm", "min_unbound_plddt", "max_unbound_pde"])
+    def boltz_filter_params = Utils.formatFilterParams(params, "boltz", ["max_rmsd_overall", "max_rmsd_designed", "max_rmsd_binder", "max_rmsd_target", "min_conf_score", "min_ptm", "min_ptm_binder", "min_ptm_target", "min_iptm", "min_plddt", "min_plddt_designed", "min_iplddt", "max_pde", "max_ipde", "min_ipSAE_min", "min_LIS", "min_pDockQ2_min", "max_pae_interaction", "max_unbound_rmsd", "min_unbound_conf_score", "min_unbound_ptm", "min_unbound_plddt", "max_unbound_pde"])
     def analysis_filter_params = Utils.formatFilterParams(params, "pr", ["min_helices", "max_helices", "min_strands", "max_strands", "min_total_ss", "max_total_ss", "min_rog", "max_rog", "min_intface_bsa", "min_intface_shpcomp", "min_intface_hbonds", "max_intface_unsat_hbonds", "max_intface_deltag", "max_intface_deltagtobsa", "max_surfhphobics", "max_sap", "max_sap_complex"])
 
     println("***********************************************************************")
@@ -635,10 +635,10 @@ workflow {
 
             // Align Boltz Predictions to FAMPNN output and calculate RMSD
             if (is_binder_mode) {
-                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'binder')
+                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'binder', fold_jsons_for_boltz)
             }
             else {
-                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'monomer')
+                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'monomer', fold_jsons_for_boltz)
             }
 
             // Optional unbound (target-free) binder-only prediction, for QC of fold consistency
@@ -668,7 +668,7 @@ workflow {
                     .set { unbound_pred_tuple }
 
                 // Align to the original (binder+target) design, comparing chain A only
-                AlignBoltzUnbound(unbound_pred_tuple, designs_for_alignment, 'unbound_binder')
+                AlignBoltzUnbound(unbound_pred_tuple, designs_for_alignment, 'unbound_binder', file("${projectDir}/lib/NO_FILE"))
 
                 CompressBoltzUnbound("boltz_unbound", AlignBoltzUnbound.out.pdbs_jsons.flatten().collect())
 
@@ -800,10 +800,10 @@ workflow {
 
             // Align Boltz Predictions to FAMPNN output and calculate RMSD
             if (is_binder_mode) {
-                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'binder')
+                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'binder', fold_jsons_for_boltz)
             }
             else {
-                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'monomer')
+                AlignBoltz(boltz_with_metrics, designs_for_alignment, 'monomer', fold_jsons_for_boltz)
             }
 
             // Optional unbound (target-free) binder-only prediction, for QC of fold consistency
@@ -833,7 +833,7 @@ workflow {
                     .set { unbound_pred_tuple }
 
                 // Align to the original (binder+target) design, comparing chain A only
-                AlignBoltzUnbound(unbound_pred_tuple, designs_for_alignment, 'unbound_binder')
+                AlignBoltzUnbound(unbound_pred_tuple, designs_for_alignment, 'unbound_binder', file("${projectDir}/lib/NO_FILE"))
 
                 CompressBoltzUnbound("boltz_unbound", AlignBoltzUnbound.out.pdbs_jsons.flatten().collect())
 

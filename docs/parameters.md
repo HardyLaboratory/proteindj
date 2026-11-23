@@ -289,6 +289,7 @@ Boltz-2 Filtering Parameters.
 | Parameter                   | Description                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------------- |
 | `boltz_max_rmsd_overall`    | Max C-alpha RMSD between all chains of Boltz-2 prediction and input design                        |
+| `boltz_max_rmsd_designed`   | Max C-alpha RMSD of the designed residues between Boltz-2 prediction and input design, after aligning the whole monomer. Monomer modes only. |
 | `boltz_max_rmsd_binder`     | Max C-alpha RMSD between binder chains of Boltz-2 prediction and input design. Binder modes only. |
 | `boltz_max_rmsd_target`     | Max C-alpha RMSD between target chains of Boltz-2 prediction and input design. Binder modes only. |
 | `boltz_min_conf_score`      | Minimum confidence score of the prediction                                                        |
@@ -301,6 +302,7 @@ Boltz-2 Filtering Parameters.
 | `boltz_min_ptm_target`      | Minimum predicted template modelling score of the target chain. Binder modes only.                |
 | `boltz_min_iptm`   | Minimum predicted template modelling score of the prediction interface                            |
 | `boltz_min_plddt`           | Minimum pLDDT score of the prediction                                                             |
+| `boltz_min_plddt_designed`  | Minimum mean pLDDT score of the designed residues. Monomer modes only.                            |
 | `boltz_min_iplddt` | Minimum pLDDT score of the prediction interface                                                   |
 | `boltz_max_pde`             | Maximum predicted distance error of the prediction                                                |
 | `boltz_max_ipde`   | Maximum predicted distance error for the prediction interface                                     |

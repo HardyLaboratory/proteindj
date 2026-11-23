@@ -38,6 +38,7 @@ nextflow_process {
                     file("\${params.design_dir}/fold_1_seq_0.pdb", checkIfExists: true)
                 ]
                 input[2] = "binder"
+                input[3] = file("${projectDir}/lib/NO_FILE", checkIfExists: true)
                 """
             }
         }
@@ -82,6 +83,64 @@ nextflow_process {
             // Metadata jsonl (topic output) - one line per fold/seq
             def metadataFiles = process.out[2]
             assert metadataFiles.size() == 1
+        }
+
+    }
+
+    // Monomer designs also report metrics for the designed residues only. fold_0.json (tier_b_monomer/
+    // rfd_output) marks every residue as designed so its designed metrics equal the overall ones;
+    // fold_1.json (tier_b_monomer/rfd_output_motif) fixes the first 20 of 70 residues.
+    test("Should calculate designed residue metrics for monomer designs") {
+
+        tag "cpu"
+
+        when {
+            params {
+                boltz_dir = "${projectDir}/tests/fixtures/tier_b_monomer/boltz_output"
+                design_dir = "${projectDir}/tests/fixtures/tier_b_monomer/fampnn_output"
+                fold_dir = "${projectDir}/tests/fixtures/tier_b_monomer"
+            }
+            process {
+                """
+                input[0] = [
+                    [
+                        file("\${params.boltz_dir}/fold_0_seq_0_boltzpred.pdb", checkIfExists: true),
+                        file("\${params.boltz_dir}/fold_1_seq_0_boltzpred.pdb", checkIfExists: true)
+                    ],
+                    [
+                        file("\${params.boltz_dir}/fold_0_seq_0_boltzpred.json", checkIfExists: true),
+                        file("\${params.boltz_dir}/fold_1_seq_0_boltzpred.json", checkIfExists: true)
+                    ]
+                ]
+                input[1] = [
+                    file("\${params.design_dir}/fold_0_seq_0.pdb", checkIfExists: true),
+                    file("\${params.design_dir}/fold_1_seq_0.pdb", checkIfExists: true)
+                ]
+                input[2] = "monomer"
+                input[3] = [
+                    file("\${params.fold_dir}/rfd_output/fold_0.json", checkIfExists: true),
+                    file("\${params.fold_dir}/rfd_output_motif/fold_1.json", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def jsonFiles = process.out.pdbs_jsons[0][1]
+            def readJson = { name ->
+                new groovy.json.JsonSlurper().parse(file(jsonFiles.find { file(it).getName() == name }))
+            }
+            def fold0Json = readJson("fold_0_seq_0_boltzpred.json")
+            def fold1Json = readJson("fold_1_seq_0_boltzpred.json")
+
+            assert fold0Json.boltz_rmsd_designed == fold0Json.boltz_rmsd_overall
+            assert fold0Json.boltz_plddt_designed == fold0Json.boltz_plddt
+
+            assert fold1Json.boltz_rmsd_designed >= 0
+            assert fold1Json.boltz_plddt_designed > 0 && fold1Json.boltz_plddt_designed <= 1
+            assert fold1Json.boltz_plddt_designed != fold1Json.boltz_plddt
         }
 
     }

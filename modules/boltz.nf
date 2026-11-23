@@ -154,6 +154,7 @@ process AlignBoltz {
     tuple path(pdb_files), path(json_files)
     path designs
     val design_type
+    path fold_jsons, stageAs: 'fold_jsons/*'
 
     output:
     tuple path("aligned/*.pdb"), path("aligned/*.json"), emit: pdbs_jsons
@@ -164,6 +165,9 @@ process AlignBoltz {
 
     def num_processes = task.cpus - 1
 
+    // Fold design JSONs identify the designed residues for monomer-only designed residue metrics
+    def foldJsonParam = design_type == 'monomer' ? "--fold_json_dir fold_jsons" : ""
+
     """
     # Script to align predictions to designs and calculate RMSD
     # Also, extracts and renames metadata from json files (includes interface metrics from AnalyseBoltz)
@@ -172,6 +176,7 @@ process AlignBoltz {
         --boltz_dir ./ \
         --output_dir aligned \
         --design_type ${design_type} \
+        ${foldJsonParam} \
         --ncpus ${num_processes} \
         2>&1 | tee alignment_${task.index}.log
     

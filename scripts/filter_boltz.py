@@ -14,6 +14,8 @@ def parse_arguments():
     parser.add_argument('--json-directory', required=True, help='Path to directory containing JSON score files')
     parser.add_argument('--boltz-max-rmsd-overall', type=float,
                     help='Maximum allowed RMSD value')
+    parser.add_argument('--boltz-max-rmsd-designed', type=float,
+                        help='Maximum allowed RMSD of the designed residues (monomer designs)')
     parser.add_argument('--boltz-max-rmsd-binder', type=float,
                         help='Maximum allowed binder chain RMSD value')
     parser.add_argument('--boltz-max-rmsd-target', type=float,
@@ -30,6 +32,8 @@ def parse_arguments():
                     help='Minimum interface pTM score')
     parser.add_argument('--boltz-min-plddt', type=float,
                     help='Minimum complex pLDDT score')
+    parser.add_argument('--boltz-min-plddt-designed', type=float,
+                    help='Minimum mean pLDDT of the designed residues (monomer designs)')
     parser.add_argument('--boltz-min-iplddt', type=float,
                     help='Minimum interface-weighted pLDDT')
     parser.add_argument('--boltz-max-pde', type=float,
@@ -186,6 +190,12 @@ def filter_data(data, args):
                 if rmsd > args.boltz_max_rmsd_overall:
                     failures.append(f"rmsd_overall {rmsd:.2f} > {args.boltz_max_rmsd_overall}")
             
+            # Designed residues RMSD check
+            if args.boltz_max_rmsd_designed is not None:
+                rmsd_designed = entry.get('boltz_rmsd_designed', 1000)
+                if rmsd_designed > args.boltz_max_rmsd_designed:
+                    failures.append(f"rmsd_designed {rmsd_designed:.2f} > {args.boltz_max_rmsd_designed}")
+
             # Binder RMSD check
             if args.boltz_max_rmsd_binder is not None:
                 rmsd_binder = entry.get('boltz_rmsd_binder', 1000)
@@ -231,6 +241,11 @@ def filter_data(data, args):
                 if plddt < args.boltz_min_plddt:
                     failures.append(f"plddt {plddt:.3f} < {args.boltz_min_plddt}")
             
+            if args.boltz_min_plddt_designed is not None:
+                plddt_designed = entry.get('boltz_plddt_designed', 0)
+                if plddt_designed < args.boltz_min_plddt_designed:
+                    failures.append(f"plddt_designed {plddt_designed:.3f} < {args.boltz_min_plddt_designed}")
+
             if args.boltz_min_iplddt is not None:
                 iplddt = entry.get('boltz_iplddt', 0)
                 if iplddt < args.boltz_min_iplddt:

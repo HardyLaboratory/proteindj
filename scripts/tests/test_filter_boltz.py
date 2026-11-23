@@ -16,6 +16,7 @@ def _args(**overrides):
     """Namespace with all boltz_* threshold args defaulted to None."""
     defaults = dict(
         boltz_max_rmsd_overall=None,
+        boltz_max_rmsd_designed=None,
         boltz_max_rmsd_binder=None,
         boltz_max_rmsd_target=None,
         boltz_min_conf_score=None,
@@ -24,6 +25,7 @@ def _args(**overrides):
         boltz_min_ptm_target=None,
         boltz_min_iptm=None,
         boltz_min_plddt=None,
+        boltz_min_plddt_designed=None,
         boltz_min_iplddt=None,
         boltz_max_pde=None,
         boltz_max_ipde=None,
@@ -133,6 +135,21 @@ class TestFilterData:
         data = [_entry("a"), _entry("b")]
         passed, _ = filter_data(data, _args())
         assert passed == ["a", "b"]
+
+    def test_designed_metrics_filtered(self):
+        data = [
+            _entry("good", boltz_rmsd_designed=1.0, boltz_plddt_designed=0.9),
+            _entry("bad_rmsd", boltz_rmsd_designed=3.0, boltz_plddt_designed=0.9),
+            _entry("bad_plddt", boltz_rmsd_designed=1.0, boltz_plddt_designed=0.5),
+        ]
+        passed, _ = filter_data(data, _args(boltz_max_rmsd_designed=2.0, boltz_min_plddt_designed=0.8))
+        assert passed == ["good"]
+
+    def test_designed_metrics_missing_fail_when_filtering(self):
+        passed, _ = filter_data([_entry("a")], _args(boltz_max_rmsd_designed=2.0))
+        assert passed == []
+        passed, _ = filter_data([_entry("a")], _args(boltz_min_plddt_designed=0.5))
+        assert passed == []
 
     def test_rmsd_above_threshold_rejected(self):
         data = [_entry("a", boltz_rmsd_overall=5.0)]
