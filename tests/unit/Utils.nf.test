@@ -210,4 +210,23 @@ nextflow_function {
             assert function.result == ""
         }
     }
+
+    test("sortedByFileName orders files and tuples by file name regardless of input order") {
+        function "Utils.sortedByFileName"
+        when {
+            function {
+                """
+                input[0] = [
+                    [file("${projectDir}/tests/fixtures/tier_b_monomer/mpnn_output/fold_1_seq_0.pdb"), "b"],
+                    [file("${projectDir}/tests/fixtures/tier_b_monomer/mpnn_output/fold_0_seq_0.pdb"), "a"]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.collect { it[1] } == ["a", "b"]
+        }
+    }
+
 }

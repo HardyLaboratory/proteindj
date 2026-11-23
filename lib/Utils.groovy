@@ -19,10 +19,22 @@ class Utils {
     // no ranges, since partial diffusion cannot change chain A's length), e.g. 'A1-19,59'.
     static final String PARTIALDIFF_SPEC_REGEX = /^((A\d+(-\d+)?)|(\d+))(,((A\d+(-\d+)?)|(\d+)))*$/
 
-    // Method to rebatch channels of tuples of PDBs and JSON files
+    // Sort files (or [file, ...] tuples, by their first file) by file name. Channel items arrive in
+    // whatever order tasks finish (or, on -resume, cached tasks are replayed), so batching must sort
+    // first or the batch contents - and therefore the downstream task hashes - change between runs
+    // and break -resume.
+    static List sortedByFileName(Collection items) {
+        return items.toList().sort(false) { item ->
+            (item instanceof List ? item[0] : item).getName()
+        }
+    }
+
+    // Method to rebatch channels of tuples of PDBs and JSON files (batches are deterministic: sorted by file name)
     static def rebatchTuples(input_channel, batch_size = 50) {
         return input_channel 
             .transpose()
+            .toList()
+            .flatMap { all_pairs -> sortedByFileName(all_pairs) }
             .buffer(size: batch_size, remainder: true)
             .map { pairs -> 
                 def first_elements = pairs.collect { it[0] }
@@ -36,6 +48,7 @@ class Utils {
         return input_channel
             .collect()
             .flatMap { all_pdbs ->
+                all_pdbs = sortedByFileName(all_pdbs)
                 def total_size = all_pdbs.size()
                 def nbatches = Math.min(gpus, total_size)
                 def bsize = (total_size / nbatches).doubleValue()
@@ -53,8 +66,8 @@ class Utils {
         return input_channel
             .collect()
             .flatMap { all_pdbs ->
-                // Sort PDB files by number of residues
-                def sorted_pdbs = all_pdbs.sort { pdb ->
+                // Sort PDB files by number of residues (name order first, so ties are deterministic)
+                def sorted_pdbs = sortedByFileName(all_pdbs).sort { pdb ->
                     return countResidues(pdb)
                 }
                 
